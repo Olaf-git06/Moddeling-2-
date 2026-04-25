@@ -1,0 +1,70 @@
+\documentclass[11pt]{article}
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{hyperref}
+
+\title{Research Note: Worst-Case Guarantee of Demand-Weighted Greedy Coverage}
+\author{}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\section{Problem Mapping}
+Your demand-based ambulance objective is a \emph{weighted maximum coverage} objective.
+Let each candidate ambulance location be a set, and each postal code be an element with nonnegative demand weight.
+For a chosen set of locations $S$ with $|S| \le k$, the objective is
+\[
+F(S) = \sum_{e \in \cup_{A \in S} A} w_e,
+\]
+where $w_e \ge 0$ is demand.
+
+This is a monotone submodular maximization problem under a cardinality constraint.
+
+\section{Known Approximation Guarantee}
+For monotone submodular maximization under a cardinality constraint, classic greedy gives
+\[
+F(S_{\text{greedy}}) \ge \left(1 - \left(1 - \frac{1}{k}\right)^k\right) F(S^*).
+\]
+Hence also
+\[
+F(S_{\text{greedy}}) \ge (1 - 1/e) F(S^*) \approx 0.632\, F(S^*).
+\]
+
+For small fixed $k$, the finite-$k$ bound is stronger:
+\begin{itemize}
+\item $k=2$: $1-(1-1/2)^2 = 3/4 = 0.75$.
+\item $k=3$: $1-(2/3)^3 = 19/27 \approx 0.7037$.
+\end{itemize}
+
+\section{What This Means for Your Algorithm}
+Your demand-greedy step picks the location with maximum \emph{marginal uncovered demand} each round.
+So it is exactly the weighted maximum-coverage greedy rule.
+
+The travel-time tie-break you added is used only when marginal demand is equal.
+Therefore it does not weaken the approximation guarantee above.
+
+\section{About Worst Cases}
+Worst-case instances are known where greedy gets close to the bound and cannot be improved in polynomial time (unless standard complexity assumptions fail).
+So seeing ratios much better than $1-1/e$ in random tests is normal; the bound is a worst-case lower bound, not an average-case prediction.
+
+\section{Computational Search in Notebook}
+An extra notebook cell was added to search for bad instances by:
+\begin{enumerate}
+\item Generating many random weighted coverage instances.
+\item Computing greedy demand score.
+\item Computing exact optimal score by brute force.
+\item Reporting the worst observed ratio and the corresponding instance summary.
+\end{enumerate}
+
+This does not prove the tight theoretical worst case, but it helps find practical failure patterns for your implementation and data style.
+
+\section{References}
+\begin{enumerate}
+\item G. L. Nemhauser, L. A. Wolsey, and M. L. Fisher, ``An analysis of approximations for maximizing submodular set functions I,'' \emph{Mathematical Programming}, 14, 265--294, 1978.
+\item Maximum coverage problem (weighted version and greedy ratio), Wikipedia: \url{https://en.wikipedia.org/wiki/Maximum_coverage_problem}.
+\item Submodular maximization under cardinality constraints, Wikipedia: \url{https://en.wikipedia.org/wiki/Submodular_set_function}.
+\end{enumerate}
+
+\end{document}
