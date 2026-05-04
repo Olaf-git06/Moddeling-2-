@@ -1,0 +1,215 @@
+\documentclass[11pt,a4paper]{report}
+
+\usepackage[dutch]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[a4paper,margin=2.8cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{float}
+\usepackage{enumitem}
+
+\title{Locatiekeuze voor Ambulances binnen 15 Minuten}
+\author{Naam Student}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\textbf{Samenvatting} \\
+In dit verslag bepalen we waar $p$ ambulances moeten worden geplaatst zodat de bevolkingsvraag die binnen 15 minuten bereikt kan worden maximaal is, met daarnaast aandacht voor responstijd. Het verslag volgt de vier delen van de opdracht: (1) een intu\"itief greedy algoritme, (2) een algemeen ILP-model, (3) exacte oplossing op de gegeven datasets, en (4) een modeluitbreiding. We vergelijken snelheid en kwaliteit van de heuristiek met de optimale oplossing.
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+\chapter*{Inleiding}
+\addcontentsline{toc}{chapter}{Inleiding}
+\section*{Context}
+De opdracht gaat over ambulanceplaatsing in Nederland met een 15-minutennorm. Er zijn vraaglocaties $I$ met vraag $d_i$, kandidaat-standplaatsen $J$, reistijden $t_{ji}$, en een vast aantal ambulances $p$.
+
+\section*{Onderzoeksvraag}
+Hoe kiezen we $p$ standplaatsen zodat de gedekte vraag maximaal is, terwijl de gemiddelde responstijd zo laag mogelijk blijft?
+
+\section*{NP-hardheid (kort uitgelegd)}
+De kern van het probleem komt overeen met \emph{(gewogen) maximum coverage} met een cardinaliteitsrestrictie. Dit is NP-hard: er is geen bekende effici\"ente methode die voor alle instanties gegarandeerd de optimale oplossing vindt (tenzij $P=NP$). Daarom zijn zowel heuristieken als exacte optimalisatie relevant.
+
+\chapter{Hoofdstuk 1 -- Intu\"itief greedy algoritme}
+\section{Probleemintu\"itie}
+We plaatsen ambulances stapsgewijs. In elke stap kiezen we de standplaats die de grootste extra (nog ongedekte) vraag toevoegt binnen 15 minuten.
+
+\section{Het algoritme (pseudocode)}
+\begin{algorithm}[H]
+\caption{Demand-weighted greedy ambulanceplaatsing}
+\begin{algorithmic}[1]
+\Require kandidaatset $J$, dekkingssets $C_j \subseteq I$, vraag $d_i$, aantal ambulances $p$
+\State $S \gets \emptyset$ \Comment{gekozen standplaatsen}
+\State $U \gets \emptyset$ \Comment{al gedekte vraaglocaties}
+\For{$k=1$ to $p$}
+    \State kies $j^\star\in J\setminus S$ met maximale marginale winst
+    \[
+        \Delta(j)=\sum_{i\in (C_j\setminus U)} d_i
+    \]
+    \State bij gelijke winst: kies laagste totale reistijdscore
+    \State $S \gets S\cup\{j^\star\}$, $U \gets U\cup C_{j^\star}$
+\EndFor
+\State \Return $S,U$
+\end{algorithmic}
+\end{algorithm}
+
+\section{Hoe goed is dit algoritme?}
+Dit doel is monotone submodulaire maximalisatie met cardinaliteitsrestrictie. De klassieke greedy-garantie is:
+\[
+F(S_{\text{greedy}})\ge \left(1-\left(1-\frac{1}{p}\right)^p\right)F(S^\star)\ge (1-1/e)\,F(S^\star)\approx 0.632\,F(S^\star).
+\]
+Voor kleine $p$ is de grens sterker (bijv. $p=2 \Rightarrow 0.75$). In praktijkresultaten uit de notebook ligt greedy vaak hoger dan deze worst-case grens.
+
+\section{Waarom niet gewoon brute force?}
+Brute force test alle combinaties:
+\[
+\binom{|J|}{p}.
+\]
+Dat groeit combinatorisch en wordt snel onpraktisch bij realistische aantallen standplaatsen. Brute force is daarom vooral geschikt als benchmark op kleine instanties.
+
+\section{Wat zet je verder in dit hoofdstuk?}
+\begin{enumerate}[label=\arabic*.]
+\item Datapreparatie en implementatiekeuzes uit de notebook.
+\item Resultaten op de gegeven dataset(s): gekozen standplaatsen, gedekte vraag, responstijd.
+\item Korte analyse van sterke en zwakke gevallen van greedy.
+\end{enumerate}
+
+\chapter{Hoofdstuk 2 -- Algemeen Integer Linear Programming model}
+\section{Formele modellering}
+\textbf{Variabelen}
+\[
+x_j\in\{0,1\}\ \forall j\in J,\qquad y_i\in\{0,1\}\ \forall i\in I.
+\]
+\textbf{Parameter}
+\[
+a_{ji}=1 \text{ als } t_{ji}\le 15\text{ minuten, anders }0.
+\]
+\textbf{Doelfunctie}
+\[
+\max \sum_{i\in I} d_i y_i
+\]
+\textbf{Restricties}
+\[
+\sum_{j\in J} x_j = p,
+\]
+\[
+y_i \le \sum_{j\in J} a_{ji}x_j \quad \forall i\in I,
+\]
+\[
+x_j,y_i\in\{0,1\}.
+\]
+
+\section{Secundair doel: responstijd}
+Twee nette keuzes:
+\begin{enumerate}[label=\arabic*.]
+\item Lexicografisch: eerst maximale dekking, daarna minimale gemiddelde responstijd.
+\item Gewogen som: dekking maximaliseren minus strafterm voor responstijd.
+\end{enumerate}
+
+\section{Aanbevolen inhoud}
+\begin{enumerate}[label=\arabic*.]
+\item Heldere definitie van sets, parameters en variabelen.
+\item Motivatie van elke restrictie.
+\item Korte complexiteits- en oplosbaarheidsdiscussie.
+\end{enumerate}
+
+\chapter{Hoofdstuk 3 -- Oplossen tot optimaliteit op de datasets}
+\section{Oplosaanpak}
+Beschrijf solverkeuze (bijv. PuLP/Gurobi/CPLEX), preprocessing en instellingen.
+
+\section{Resultaten}
+\begin{table}[H]
+\centering
+\begin{tabular}{lrrrrr}
+\toprule
+Dataset & $p$ & Gedekte vraag & Dekkingsgraad & Gem. responstijd & Rekentijd \\
+\midrule
+Dataset 1 &  &  &  &  &  \\
+Dataset 2 &  &  &  &  &  \\
+\bottomrule
+\end{tabular}
+\caption{Optimale resultaten per dataset.}
+\end{table}
+
+\section{Vergelijking met Hoofdstuk 1}
+Rapporteer o.a. de optimaliteitskloof:
+\[
+\text{Gap}(\%) = 100\cdot\frac{z^\star-z^{\text{greedy}}}{z^\star}.
+\]
+
+\section{Aanbevolen inhoud}
+\begin{enumerate}[label=\arabic*.]
+\item Exacte oplossing en interpretatie per dataset.
+\item Vergelijking met greedy (kwaliteit versus snelheid).
+\item Gevoeligheidsanalyse voor verschillende waarden van $p$.
+\end{enumerate}
+
+\chapter{Hoofdstuk 4 -- Uitbreiding van het basismodel}
+\section{Keuze van uitbreiding}
+Kies een realistische uitbreiding; sterke opties:
+\begin{enumerate}[label=\arabic*.]
+\item Back-updekking (kritieke locaties minimaal tweemaal gedekt).
+\item Robuuste variant met meerdere vraagscenario's.
+\item Eerlijkheidsrestricties per regio.
+\end{enumerate}
+
+\section{Voorbeeld: back-updekking}
+Voor kritieke locaties $I_{\text{kritiek}}$:
+\[
+\sum_{j\in J} a_{ji}x_j \ge 2 \quad \forall i\in I_{\text{kritiek}}.
+\]
+Bespreek de trade-off tussen robuustheid, dekking en rekentijd.
+
+\section{Aanbevolen inhoud}
+\begin{enumerate}[label=\arabic*.]
+\item Formele modelaanpassing (nieuwe variabelen/restricties).
+\item Resultaten van basis versus uitbreiding.
+\item Praktische implicaties voor ambulanceplanning.
+\end{enumerate}
+
+\chapter*{Conclusie}
+\addcontentsline{toc}{chapter}{Conclusie}
+Vat per hoofdstuk de hoofdbevinding samen: kwaliteit van greedy, waarde van ILP-optimaliteit, en effect van de gekozen uitbreiding. Sluit af met een praktisch advies voor wanneer je welke methode inzet.
+
+\chapter*{Referenties}
+\addcontentsline{toc}{chapter}{Referenties}
+\begin{thebibliography}{9}
+\bibitem{nemhauser1978}
+G. L. Nemhauser, L. A. Wolsey, and M. L. Fisher,
+\emph{An analysis of approximations for maximizing submodular set functions I},
+Mathematical Programming, 14, 265--294, 1978.
+
+\bibitem{maxcoverage}
+Maximum coverage problem (weighted variant and greedy ratio), Wikipedia.
+
+\bibitem{submod}
+Submodular maximization under cardinality constraints, standard lecture literature.
+\end{thebibliography}
+
+\appendix
+\chapter{Bijlage}
+\section*{Bijlage A -- Code-overzicht}
+\addcontentsline{toc}{section}{Bijlage A -- Code-overzicht}
+Verwijs hier naar notebook-onderdelen:
+\begin{itemize}
+\item data inlezen en opschonen;
+\item greedy zonder en met vraagweging;
+\item brute-force benchmark;
+\item random experimenten en worst-case voorbeelden.
+\end{itemize}
+
+\section*{Bijlage B -- Extra tabellen en figuren}
+\addcontentsline{toc}{section}{Bijlage B -- Extra tabellen en figuren}
+Plaats hier volledige resultaatlijsten, extra plots, en gevoeligheidsuitvoer.
+
+\end{document}
