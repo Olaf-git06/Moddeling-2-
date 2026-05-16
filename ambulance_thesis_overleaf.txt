@@ -1,7 +1,6 @@
 \documentclass[11pt,a4paper]{report}
 
-\usepackage[dutch]{babel}
-\usepackage[utf8]{inputenc}
+\usepackage[english,dutch]{babel}   % main language last\usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage{lmodern}
 \usepackage[a4paper,margin=2.8cm]{geometry}
@@ -13,6 +12,12 @@
 \usepackage{algpseudocode}
 \usepackage{float}
 \usepackage{enumitem}
+\usepackage[backend=biber,style=authoryear]{biblatex}
+\addbibresource{references.bib}
+
+\usepackage{amsthm}
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}{Lemma}
 
 \title{Locatiekeuze voor Ambulances binnen 15 Minuten}
 \author{Naam Student}
@@ -44,84 +49,338 @@ De kern van het probleem komt overeen met \emph{(gewogen) maximum coverage} met 
 \section{Probleemintu\"itie}
 We plaatsen ambulances stapsgewijs. In elke stap kiezen we de standplaats die de grootste extra (nog ongedekte) vraag toevoegt binnen 15 minuten.
 
-\section{Het algoritme (pseudocode)}
-\begin{algorithm}[H]
-\caption{Demand-weighted greedy ambulanceplaatsing}
+\section{Beschrijving van het greedy algoritme)}
+\begin{algorithm}
+\caption{Greedy Ambulance Placement}
 \begin{algorithmic}[1]
-\Require kandidaatset $J$, dekkingssets $C_j \subseteq I$, vraag $d_i$, aantal ambulances $p$
-\State $S \gets \emptyset$ \Comment{gekozen standplaatsen}
-\State $U \gets \emptyset$ \Comment{al gedekte vraaglocaties}
-\For{$k=1$ to $p$}
-    \State kies $j^\star\in J\setminus S$ met maximale marginale winst
-    \[
-        \Delta(j)=\sum_{i\in (C_j\setminus U)} d_i
-    \]
-    \State bij gelijke winst: kies laagste totale reistijdscore
-    \State $S \gets S\cup\{j^\star\}$, $U \gets U\cup C_{j^\star}$
-\EndFor
-\State \Return $S,U$
+\Function{Greedyalgorithm}{coverage, times, demand, k}
+    \State $covered \gets$ empty set
+    \State $chosen   \gets$ empty list
+    \For{$i \gets 1$ \textbf{to} $k$}
+        \State $best\_loc  \gets$ None
+        \State $best\_gain \gets -1$
+        \ForAll{location $L$ in coverage}
+            \State $new\_cov \gets$ coverage[L] $-$ covered
+            \State $gain \gets$ sum of demand[pc] for pc in new\_cov \Comment{0 if pc missing}
+            \State \textbf{if} $gain > best\_gain$ \textbf{or}
+            \State \hspace{1em} ($gain = best\_gain$ \textbf{and}
+            \State \hspace{2em} ($best\_loc =$ None \textbf{or} $total\_time(L) < total\_time(best\_loc)$))
+            \State \hspace{1em} \textbf{then}
+            \State \hspace{2em} $best\_loc  \gets L$
+            \State \hspace{2em} $best\_gain \gets gain$
+        
+        \State $covered \gets$ covered $\cup$ coverage[best\_loc]
+        \State add best\_loc to chosen
+    
+    \State \Return (chosen, covered)
+        \EndFor
+    \EndFor
+
 \end{algorithmic}
 \end{algorithm}
 
-\section{Hoe goed is dit algoritme?}
-Dit doel is monotone submodulaire maximalisatie met cardinaliteitsrestrictie. De klassieke greedy-garantie is:
-\[
-F(S_{\text{greedy}})\ge \left(1-\left(1-\frac{1}{p}\right)^p\right)F(S^\star)\ge (1-1/e)\,F(S^\star)\approx 0.632\,F(S^\star).
-\]
-Voor kleine $p$ is de grens sterker (bijv. $p=2 \Rightarrow 0.75$). In praktijkresultaten uit de notebook ligt greedy vaak hoger dan deze worst-case grens.
 
-\section{Waarom niet gewoon brute force?}
-Brute force test alle combinaties:
+\section{theoretische Eigenschappen en prestaties van het greedy algoritme}
+%dit greedy algorithm produceert niet altijd een perfect antwoord. Je kan dit algoritme reducereren naar een greedy maximum set cover of dit algoritme is op een of andere manier gelijk aan een greedy maximum set cover problem. En daarvoor kan je de lower bound 1- 1/e bewijzen. 
+
+%\bigskip
+%When proceding to employ the greedy algorithm in this ambulance positioning problem, one must consider $OPT$ to be the number of area codes 
+
+
+Het greedy algoritme garandeert niet dat de optimale oplossing wordt gevonden. De reden hiervoor is dat het algoritme in elke stap een lokaal optimale keuze maakt, namelijk de standplaats die op dat moment de grootste extra nog ongedekte vraag toevoegt. Deze lokale optimaliteit leidt niet per se tot een globale optimale oplossing.
+\\
+Het onderliggende probleem kan worden gezien als een variant van het \emph{maximum coverage problem}. Dit probleem is NP-hard, waardoor het in het algemeen niet efficiënt exact oplosbaar is voor grotere vraagstukken \parencite{hochba-1997}. Het greedy algoritme vormt daarom een praktische heuristiek. Het algoritme is eenvoudig te implementeren en heeft een lage rekentijd, terwijl het in de praktijk vaak oplossingen van hoge kwaliteit oplevert.
+\\
+
+Voor het maximum coverage problem is aangetoond dat het greedy algoritme een benaderingsgrarantie heeft van 
+\[
+1 - \frac{1}{e} \approx 0.63,
+\]
+wat betekent dat de gevonden oplossing minimaal 63\% van de optimale oplossing bedraagt \parencite{nemhauser-1978}. In de praktijk presteert het algoritme vaak aanzienlijk beter, bijvoorbeeld wanneer de overlap tussen dekkingsgebieden beperkt is. In dat geval levert elke geselecteerde locatie een significante bijdrage aan de totale dekking.
+\\
+Het greedy algoritme biedt in de meeste gevallen oplossingen van hoge kwaliteit, maar zonder garantie op optimaliteit. Een goede balans tussen rekentijd en oplossingskwalitiet. 
+\\
+\\
+\textbf{source voor bewijs  = \parencite{evans2011lecture3}}
+
+
+\section{Vergelijking met brute force}
+Een voor de hand liggende aanpak om dit probleem op te lossen is het gebruik van brute force. Hierbij worden alle mogelijke combinaties van \(p\) standplaatsen uit de verzameling \(J\) geëvalueerd, waarna de combinatie met de maximale dekking wordt gekozen. Het aantal mogelijke combinatie wordt gegeven door de binomiale coëfficient: 
 \[
 \binom{|J|}{p}.
 \]
-Dat groeit combinatorisch en wordt snel onpraktisch bij realistische aantallen standplaatsen. Brute force is daarom vooral geschikt als benchmark op kleine instanties.
 
-\section{Wat zet je verder in dit hoofdstuk?}
-\begin{enumerate}[label=\arabic*.]
-\item Datapreparatie en implementatiekeuzes uit de notebook.
-\item Resultaten op de gegeven dataset(s): gekozen standplaatsen, gedekte vraag, responstijd.
-\item Korte analyse van sterke en zwakke gevallen van greedy.
-\end{enumerate}
+Hoewel deze aanpak gegarandeerd de optimale oplossing oplevert, is het in de praktijk vaak niet toepasbaar. Het aantal combinaties groeit namelijk zeer snel naarmate het aantal potentiële standplaatsen of het aantal ambulances toeneemt, ook wel combinatorische explosie genoemd \parencite{unknown-author-no-date}. Als we naar de gegeven datasets kijken, dan is dit effect goed te zien. In de kleine dataset met \(|J| = 98\) en \(p = 2\) zijn er
+\[
+\binom{98}{2} = 4753
+\]
+mogelijke combinaties van standplaatsen. Deze dataset analyseren met brute force is nog goed te doen. In de grote dataset met \(|J| = 217\) en \(p = 5\) stijgt dit aantal echter naar
+\[
+\binom{217}{5} = 3{.}827{.}930{.}778,
+\]
+oftewel ruim 3{,}8 miljard combinaties. Het systematisch analyseren van de dataset met brute force is in de praktijk niet haalbaar, dus voor grotere datasets is een andere methode nodig.
 
-\chapter{Hoofdstuk 2 -- Algemeen Integer Linear Programming model}
-\section{Formele modellering}
-\textbf{Variabelen}
+\section{waar doet het greedy algoritme het niet goed}
+
+Een greedy algoritme voor de gewogen maximum coverage variant kan slecht presteren wanneer een set lokaal aantrekkelijk lijkt. Een greedy algoritme maximaliseert de marginale toename van demand, maar deze aanpak leidt niet altijd tot een globaal optimum.  Figuur~\ref{fig:k2_bad_greedy} laat hiervan een eenvoudig voorbeeld zien voor \(K=2\).
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.7\textwidth]{voorbeeld.png}
+    \caption{Example figure}
+    \label{fig:k2_bad_greedy}
+\end{figure}
+
+
+
+Stel dat de sets $A$, $B$ en $C$ elk een totale demand van 10 dekken, 
+dat wil zeggen $|A| = |B| = |C| = 10$. Verder geldt $A \cap C = \varnothing$ 
+en $B \subseteq A \cup C$, met $|A \cap B| = |B \cap C| = 5$. 
+In de eerste stap ziet het greedy algoritme dus geen verschil tussen 
+$A$, $B$ en $C$, omdat alle drie dezelfde marginale waarde 
+$\mu(A) = \mu(B) = \mu(C) = 10$ hebben. In de eerste stap ziet het greedy algoritme dus geen verschil tussen \(A\), \(B\) en \(C\), omdat alle drie dezelfde marginale waarde \(10\) hebben. Als het algoritme door tie-breaking eerst (minste totale travel time) \(B\) kiest, dan blijft er in de tweede stap nog maar \(5\) extra demand over in \(A\) of \(C\). Greedy kiest dan bijvoorbeeld \(B\) en \(C\), met een totale gedekte demand van \(10 + 5 = 15\). De optimale oplossing kiest daarentegen \(A\) en \(C\), omdat deze niet overlappen en samen \(20\) demand dekken. De benaderingsratio is dan
 \[
-x_j\in\{0,1\}\ \forall j\in J,\qquad y_i\in\{0,1\}\ \forall i\in I.
+\frac{15}{20}
+=
+0.75
+=
+1 - \left(1 - \frac{1}{2}\right)^2.
 \]
-\textbf{Parameter}
+Dit voorbeeld laat zien waarom de ondergrens \(1-(1-1/K)^K\) kan worden bereikt: greedy kiest telkens een set die op dat moment goed lijkt, maar die een deel van de waarde van meerdere optimale sets tegelijk wegneemt.
+
+
+
+
+\section{Resultaten op dataset en unit tests van greedy algoritme}
+
+\vspace{10mm}
+
+
+\subsection{implementatie algoritme}
+\vspace{10mm}
+\subsection{resultaten dataset}
+\vspace{10mm}
+
+
+\subsection{prestaties greedy algoritme op unit tests}
+\vspace{10mm}
+
+\subsubsection{random test cases}
+\vspace{10mm}
+
+\subsubsection{test cases die op stad lijken}
+\vspace{10mm}
+
+
+
+\section{*verbeterd greedy algoritme(ik weet nog niet zeker of deze section erin komt }
+
+\subsection{pseudocode}
+
+\subsection{prestaties verbeterd greedy algoritme}
+
+
+
+
+
+\chapter{Hoofdstuk 2 -- Algemeen Integer Linear Programming model }
+
+\section*{Intro niet vergeten}
+
+\section{Probleembeschrijving}
+
+Naast het greedy algoritme uit het vorige hoofdstuk kan het ambulanceplaatsingsprobleem ook exact worden opgelost met behulp van Integer Linear Programming (ILP). Het doel blijft hetzelfde: kies een vast aantal standplaatsen zodat zoveel mogelijk vraag binnen \(15\) minuten bereikbaar is.
+\\
+Voor de small dataset bestaat het probleem uit \(98\) vraaglocaties en \(98\) mogelijke standplaatsen. Daarnaast geldt dat er slechts
+
 \[
-a_{ji}=1 \text{ als } t_{ji}\le 15\text{ minuten, anders }0.
+p = 2
 \]
-\textbf{Doelfunctie}
+ambulances geplaatst mogen worden.
+\\
+Voor de large dataset geldt dat er \(217\) vraaglocaties en \(217\) mogelijke standplaatsen zijn. Tevens mogen er slechts 
+
 \[
-\max \sum_{i\in I} d_i y_i
+p = 5
 \]
-\textbf{Restricties}
+ambulances geplaats worden.
+
+\section{Sets}
+
+Laat \(I\) de verzameling vraaglocaties voorstellen en laat \(J\) de verzameling potentiële standplaatsen voorstellen.
+\\
+Voor de small dataset geldt dus:
+
 \[
-\sum_{j\in J} x_j = p,
+|I| = 98,
+\qquad
+|J| = 98.
 \]
+\\
+En voor de large dataset geldt:
+
 \[
-y_i \le \sum_{j\in J} a_{ji}x_j \quad \forall i\in I,
-\]
-\[
-x_j,y_i\in\{0,1\}.
+|I| = 217,
+\qquad
+|J| = 217.
 \]
 
-\section{Secundair doel: responstijd}
-Twee nette keuzes:
-\begin{enumerate}[label=\arabic*.]
-\item Lexicografisch: eerst maximale dekking, daarna minimale gemiddelde responstijd.
-\item Gewogen som: dekking maximaliseren minus strafterm voor responstijd.
-\end{enumerate}
 
-\section{Aanbevolen inhoud}
-\begin{enumerate}[label=\arabic*.]
-\item Heldere definitie van sets, parameters en variabelen.
-\item Motivatie van elke restrictie.
-\item Korte complexiteits- en oplosbaarheidsdiscussie.
-\end{enumerate}
+\newpage
+\section{Parameters}
+
+Voor iedere vraaglocatie \(i \in I\) is een vraagwaarde gegeven:
+
+\[
+d_i \geq 0.
+\]
+Deze parameter geeft de bevolkingsvraag van vraaglocatie \(i\) weer.\\
+\\
+Daarnaast is voor iedere standplaats \(j \in J\) en vraaglocatie \(i \in I\) een reistijd gegeven:
+
+\[
+t_{ji}.
+\]
+\\
+De reistijden in de dataset staan weergegeven in seconden. Omdat de norm gelijk is aan \(15\) minuten, gebruiken we de grenswaarde
+
+\[
+15 \cdot 60 = 900.
+\]
+\\
+Op basis hiervan definiëren we de parameter
+
+\[
+a_{ji} =
+\begin{cases}
+1, & \text{als } t_{ji} \leq 900,\\
+0, & \text{anders}.
+\end{cases}
+\]
+\\
+Hiermee geeft \(a_{ji}\) aan of vraaglocatie \(i\) binnen \(15\) minuten bereikbaar is vanaf standplaats \(j\).
+
+\section{Beslissingsvariabelen}
+
+Voor iedere mogelijke standplaats \(j \in J\) definiëren we de binaire variabele
+
+\[
+x_j =
+\begin{cases}
+1, & \text{als op locatie } j \text{ een ambulance wordt geplaatst},\\
+0, & \text{anders}.
+\end{cases}
+\]
+
+Daarnaast definiëren we voor iedere vraaglocatie \(i \in I\):
+
+\[
+y_i =
+\begin{cases}
+1, & \text{als locatie } i \text{ binnen } 15 \text{ minuten gedekt wordt},\\
+0, & \text{anders}.
+\end{cases}
+\]
+
+\section{Doelfunctie}
+
+Het doel van het model is om voor beide datasets de totale gedekte vraag te maximaliseren:
+
+\[
+\max \sum_{i \in I} d_i y_i.
+\]
+\\
+Hiermee maximaliseren we dus de totale populatie die binnen de normtijd bereikbaar is.
+
+\section{Restricties}
+
+\subsection{Aantal ambulances}
+
+Er mogen precies \(p\) ambulances geplaatst worden:
+
+\[
+\sum_{j \in J} x_j = p.
+\]
+
+Voor de small dataset betekent dit:
+
+\[
+p = 2.
+\]
+
+En voor de large dataset geldt:
+
+\[
+p = 5
+\]
+
+\subsection{Dekkingsrestricties}
+
+Een vraaglocatie mag alleen als gedekt worden beschouwd als minstens één gekozen standplaats deze locatie binnen \(15\) minuten kan bereiken:
+
+\[
+y_i \leq \sum_{j \in J} a_{ji}x_j
+\qquad
+\forall i \in I.
+\]
+\\
+Wanneer geen enkele geselecteerde standplaats vraaglocatie \(i\) binnen \(15\) minuten bereikt, dan moet automatisch gelden dat
+
+\[
+y_i = 0.
+\]
+
+\subsection{Binaire restricties}
+
+Ten slotte zijn alle beslissingsvariabelen binair:
+
+\[
+x_j \in \{0,1\}
+\qquad \forall j \in J,
+\]
+
+\[
+y_i \in \{0,1\}
+\qquad \forall i \in I.
+\]
+
+%\section{Formele modellering}
+%\textbf{Variabelen}
+%\[
+%x_j\in\{0,1\}\ \forall j\in J,\qquad y_i\in\{0,1\}\ \forall i\in I.
+%\]
+%\textbf{Parameter}
+%\[
+%a_{ji}=1 \text{ als } t_{ji}\le 15\text{ minuten, anders }0.
+%\]
+%\textbf{Doelfunctie}
+%\[
+%\max \sum_{i\in I} d_i y_i
+%\]
+%\textbf{Restricties}
+%\[
+%\sum_{j\in J} x_j = p,
+%\]
+%\[
+%y_i \le \sum_{j\in J} a_{ji}x_j \quad \forall i\in I,
+%\]
+%\[
+%x_j,y_i\in\{0,1\}.
+%\]
+
+%\section{Secundair doel: responstijd}
+%Twee nette keuzes:
+%\begin{enumerate}[label=\arabic*.]
+%\item Lexicografisch: eerst maximale dekking, daarna minimale gemiddelde responstijd.
+%\item Gewogen som: dekking maximaliseren minus strafterm voor responstijd.
+%\end{enumerate}
+
+%\section{Aanbevolen inhoud}
+%\begin{enumerate}[label=\arabic*.]
+%\item Heldere definitie van sets, parameters en variabelen.
+%\item Motivatie van elke restrictie.
+%\item Korte complexiteits- en oplosbaarheidsdiscussie.
+%\end{enumerate}
 
 \chapter{Hoofdstuk 3 -- Oplossen tot optimaliteit op de datasets}
 \section{Oplosaanpak}
@@ -194,7 +453,10 @@ Maximum coverage problem (weighted variant and greedy ratio), Wikipedia.
 
 \bibitem{submod}
 Submodular maximization under cardinality constraints, standard lecture literature.
+
 \end{thebibliography}
+\printbibliography
+
 
 \appendix
 \chapter{Bijlage}
@@ -211,5 +473,194 @@ Verwijs hier naar notebook-onderdelen:
 \section*{Bijlage B -- Extra tabellen en figuren}
 \addcontentsline{toc}{section}{Bijlage B -- Extra tabellen en figuren}
 Plaats hier volledige resultaatlijsten, extra plots, en gevoeligheidsuitvoer.
+\newpage
+
+\section*{Bijlage C -- Bewijzen}
+
+\begin{theorem}
+Voor het gewogen Maximum Coverage-probleem geldt dat de greedy-oplossing \(G\) minstens een factor \(1-\frac{1}{e}\) van een optimale oplossing \(OPT\) behaalt:
+\[
+G \geq \left(1-\frac{1}{e}\right)OPT.
+\]
+\end{theorem}
+
+\begin{proof}
+
+Laat
+\[
+U=\{u_1,u_2,\ldots,u_n\}
+\]
+de verzameling postcodes zijn. Voor elke mogelijke ambulancelocatie \(j\) definiëren we een verzameling
+\[
+S_j \subseteq U,
+\]
+waarbij \(S_j\) de postcodes bevat die vanaf locatie \(j\) binnen 15 minuten bereikbaar zijn. Laat
+\[
+\mathcal S=\{S_1,S_2,\ldots,S_m\}
+\]
+
+Voor elk vraagpunt \(u \in U\) is een niet-negatieve vraag \(d(u)\geq 0\) gegeven. Voor een gekozen collectie verzamelingen \(A \subseteq \mathcal S\) definiëren we de totale gedekte vraag als
+\[
+f(A)
+=
+\sum_{u \in \bigcup_{S \in A} S} d(u).
+\]
+
+Laat \(k\) het maximaal aantal verzamelingen zijn dat gekozen mag worden. Laat \(O\) een optimale oplossing zijn met hoogstens \(k\) verzamelingen, zodat
+\[
+f(O)=OPT.
+\]
+
+Voor \(i=0,1,\ldots,k\) definiëren we \(G_i\) als de collectie verzamelingen die het greedy-algoritme na \(i\) iteraties heeft gekozen. Dus \(G_0=\emptyset\), en \(f(G_k)\) is de uiteindelijke waarde van de greedy-oplossing.
+
+Definieer de resterende kloof na \(i\) iteraties als
+\[
+R_i = OPT - f(G_i).
+\]
+
+De functie \(f\) is monotoon. Immers, als \(A \subseteq B\), dan geldt
+\[
+\bigcup_{S \in A} S \subseteq \bigcup_{S \in B} S.
+\]
+Omdat alle vragen \(d(u)\) niet-negatief zijn, volgt
+\[
+f(A)\leq f(B).
+\]
+
+\begin{lemma}
+In iteratie \(i+1\) verhoogt het greedy-algoritme de doelfunctiewaarde met minstens
+\[
+\frac{R_i}{k}.
+\]
+\end{lemma}
+
+\begin{proof}
+Laat
+\[
+O = \{o_1,o_2,\ldots,o_m\}
+\]
+een optimale oplossing zijn, waarbij \(m \leq k\). Voor elke \(o_r \in O\) definiëren we de marginale bijdrage ten opzichte van de huidige greedy-oplossing \(G_i\) en de eerder beschouwde verzamelingen uit \(O\) als
+\[
+\delta_r =
+f(G_i \cup \{o_1,\ldots,o_r\})
+-
+f(G_i \cup \{o_1,\ldots,o_{r-1}\}).
+\]
+
+Door deze marginale bijdragen op te tellen, krijgen we
+\[
+\sum_{r=1}^{m} \delta_r
+=
+f(G_i \cup O) - f(G_i).
+\]
+(Want dit is een "telescoping sum" dus alles behalve het begin en einde verdwijnt.)
+\vspace{5mm}
+
+Omdat \(f\) monotoon is en \(O\) optimaal is, geldt
+\[
+f(G_i \cup O)\geq f(O)=OPT.
+\]
+Dus
+\[
+\sum_{r=1}^{m} \delta_r
+\geq
+OPT - f(G_i)
+=
+R_i.
+\]
+
+Omdat \(m \leq k\), bestaat er minstens één verzameling \(o_r \in O\) waarvoor
+\[
+\delta_r \geq \frac{R_i}{k}.
+\]
+
+De marginale bijdrage van \(o_r\) aan \(G_i\) is minstens \(\delta_r\). De waarde \(\delta_r\) wordt namelijk gemeten nadat mogelijk al andere verzamelingen uit \(O\) zijn toegevoegd, waardoor sommige elementen al gedekt kunnen zijn. Wanneer \(o_r\) direct aan \(G_i\) wordt toegevoegd, kunnen dus alleen meer elementen nieuw worden gedekt. Daarom geldt
+\[
+f(G_i \cup \{o_r\}) - f(G_i)
+\geq
+\frac{R_i}{k}.
+\]
+
+Het greedy-algoritme kiest een verzameling met maximale marginale bijdrage. Dus verhoogt greedy de doelfunctiewaarde in iteratie \(i+1\) met minstens
+\[
+\frac{R_i}{k}.
+\]
+\end{proof}
+
+\begin{lemma}
+Voor elke \(i=0,1,\ldots,k\) geldt
+\[
+R_i \leq \left(1-\frac{1}{k}\right)^i OPT.
+\]
+\end{lemma}
+
+\begin{proof}
+We bewijzen de uitspraak met inductie naar \(i\).
+
+Voor \(i=0\) geldt
+\[
+R_0 = OPT
+=
+\left(1-\frac{1}{k}\right)^0 OPT.
+\]
+
+Neem nu aan dat
+\[
+R_i \leq \left(1-\frac{1}{k}\right)^i OPT.
+\]
+
+Volgens Lemma 1 verlaagt greedy de resterende kloof in iteratie \(i+1\) met minstens \(R_i/k\). Dus
+\[
+R_{i+1}
+\leq
+R_i - \frac{R_i}{k}
+=
+\left(1-\frac{1}{k}\right)R_i.
+\]
+
+Met de inductiehypothese volgt
+\[
+R_{i+1}
+\leq
+\left(1-\frac{1}{k}\right)
+\left(1-\frac{1}{k}\right)^i OPT
+=
+\left(1-\frac{1}{k}\right)^{i+1}OPT.
+\]
+
+Dus geldt de uitspraak voor alle \(i\).
+\end{proof}
+
+Pas nu het tweede lemma toe met \(i=k\). Dan krijgen we
+\[
+R_k \leq \left(1-\frac{1}{k}\right)^k OPT.
+\]
+
+Omdat
+\[
+\left(1-\frac{1}{k}\right)^k \leq \frac{1}{e},
+\]
+volgt
+\[
+R_k \leq \frac{OPT}{e}.
+\]
+
+Omdat
+\[
+f(G_k)=OPT-R_k,
+\]
+volgt
+\[
+f(G_k)
+\geq
+OPT-\frac{OPT}{e}
+=
+\left(1-\frac{1}{e}\right)OPT.
+\]
+
+Hieruit volgt dat het greedy-algoritme een \((1-1/e)\)-benaderingsalgoritme is voor het gewogen Maximum Coverage-probleem.
+
+\end{proof}
+
 
 \end{document}
