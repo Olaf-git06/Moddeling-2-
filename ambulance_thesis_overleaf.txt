@@ -282,15 +282,35 @@ y_i =
 \end{cases}
 \]
 
-\section{Doelfunctie}
-
-Het doel van het model is om voor beide datasets de totale gedekte vraag te maximaliseren:
+Om bij een gelijke dekking als tiebreaker de reistijd te kunnen minimaliseren, definiëren we ook een toewijzingsvariabele:
 
 \[
-\max \sum_{i \in I} d_i y_i.
+z_{ji} =
+\begin{cases}
+1, & \text{als standplaats } j \text{ de vraaglocatie } i \text{ bedient},\\
+0, & \text{anders}.
+\end{cases}
+\]
+
+\newpage
+
+\section{Doelfunctie}
+
+Het optimalisatieprobleem wordt opgelost in twee  stappen. Het primaire doel is om voor beide datasets de totale gedekte vraag te maximaliseren:
+
+\[
+Z^* = \max \sum_{i \in I} d_i y_i.
 \]
 \\
-Hiermee maximaliseren we dus de totale populatie die binnen de normtijd bereikbaar is.
+Hiermee maximaliseren we dus de totale populatie die binnen de normtijd bereikbaar is. De optimale waarde slaan we op als \(Z^*\). \\
+\\
+Het secundaire doel is om bij deze maximale dekking de totale reistijd van de toegewezen ambulances te minimaliseren:
+
+\[
+\min \sum_{i \in I} \sum_{j \in J} d_i t_{ji} z_{ji}.
+\]
+
+Hierbij nemen we dus ook de vraag mee van elke postcode. Een lange reistijd voor een postcode met veel vraag moet zwaarder mee tellen dan een postcode met een lage vraag.
 
 \section{Restricties}
 
@@ -329,6 +349,28 @@ Wanneer geen enkele geselecteerde standplaats vraaglocatie \(i\) binnen \(15\) m
 \[
 y_i = 0.
 \]
+\\
+Daarnaast mag een gedekte locatie door exact \'e\'en standplaats bediend worden om de reistijd te bepalen:
+
+\[
+\sum_{j \in J} z_{ji} = y_i
+\qquad \forall i \in I.
+\]
+\\
+Deze standplaats \(j\) mag de vraaglocatie \(i\) alleen bedienen als er een ambulance staat en de reistijd binnen de norm valt:
+
+\[
+z_{ji} \leq a_{ji} x_j
+\qquad \forall i \in I, \forall j \in J.
+\]
+
+\subsection{Voorwaarde voor tiebreaker}
+
+Tijdens het minimaliseren van de reistijd in de secundaire stap garanderen we dat de maximale dekking uit de primaire stap behouden blijft met de volgende restrictie:
+
+\[
+\sum_{i \in I} d_i y_i = Z^*.
+\]
 
 \subsection{Binaire restricties}
 
@@ -341,7 +383,12 @@ x_j \in \{0,1\}
 
 \[
 y_i \in \{0,1\}
-\qquad \forall i \in I.
+\qquad \forall i \in I,
+\]
+
+\[
+z_{ji} \in \{0,1\}
+\qquad \forall i \in I, \forall j \in J.
 \]
 
 %\section{Formele modellering}
